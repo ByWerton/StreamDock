@@ -2,8 +2,8 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamDock V3 Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StreamDock V4 - Mobile Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
@@ -12,235 +12,216 @@
             background-color: #020617;
             color: #f8fafc;
             font-family: 'Plus Jakarta Sans', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             margin: 0;
             overflow: hidden;
+            height: 100vh;
+            touch-action: none; /* Kaydırmayı engelle, sadece sürüklemeye odaklan */
         }
 
-        .permission-card {
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 2rem;
-            width: 90%;
-            max-width: 400px;
+        .permission-overlay {
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
         }
 
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .status-pending { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
-        .status-granted { background-color: #10b981; box-shadow: 0 0 15px #10b981; }
-
-        /* Floating Button Styles */
-        #floating-dock {
-            display: none;
+        #floating-control {
             position: fixed;
-            right: 20px;
-            top: 50%;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             background: #3b82f6;
             border-radius: 50%;
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5);
-            z-index: 1000;
-            cursor: pointer;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
-            transition: all 0.5s ease;
+            z-index: 1000;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            cursor: pointer;
+            transition: opacity 0.4s, transform 0.4s;
         }
 
-        .dock-idle {
-            opacity: 0.4;
-            transform: scale(0.8) translateX(30px);
+        .idle { opacity: 0.2; transform: scale(0.85); }
+
+        #action-panel {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.98);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            padding: 20px;
         }
+
+        .glass { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen" class="permission-card p-8 shadow-2xl z-10">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-black tracking-tighter italic">STREAM<span class="text-blue-500">DOCK</span> V3</h1>
-            <p class="text-slate-400 text-sm mt-2 font-medium">Sistem İzinlerini Yapılandırın</p>
-        </header>
+    <!-- Başlangıç Ekranı -->
+    <div id="init-screen" class="permission-overlay fixed inset-0 flex flex-col items-center justify-center p-6 text-center">
+        <div class="mb-8">
+            <h1 class="text-4xl font-black italic tracking-tighter mb-2">STREAM<span class="text-blue-500">DOCK</span> V4</h1>
+            <p class="text-slate-400 text-sm">Mobil Yayın Yönetim Konsolu</p>
+        </div>
 
-        <div class="space-y-4 mb-8">
-            <!-- Mikrofon -->
-            <div class="flex items-center justify-between p-4 bg-slate-900/60 rounded-2xl border border-slate-800 transition-all">
-                <div class="flex items-center space-x-3">
-                    <div id="mic-dot" class="status-dot status-pending"></div>
-                    <span class="text-sm font-semibold text-slate-300">Mikrofon</span>
-                </div>
-                <button onclick="requestMic()" id="btn-mic" class="text-xs bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl font-bold transition-all active:scale-90">İzin İste</button>
+        <div class="w-full max-w-xs space-y-4">
+            <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5 text-left">
+                <p class="text-[11px] font-bold text-slate-500 uppercase mb-2">Gereksinimler</p>
+                <ul class="text-xs space-y-2 text-slate-300">
+                    <li class="flex items-center">✅ HTTPS Bağlantısı Aktif</li>
+                    <li class="flex items-center">✅ Chrome Tarayıcı Tespit Edildi</li>
+                    <li id="req-mic" class="flex items-center text-slate-500">⚪ Mikrofon Erişimi Bekleniyor</li>
+                    <li id="req-scr" class="flex items-center text-slate-500">⚪ Ekran Yayını Bekleniyor</li>
+                </ul>
             </div>
 
-            <!-- Ekran -->
-            <div class="flex items-center justify-between p-4 bg-slate-900/60 rounded-2xl border border-slate-800">
-                <div class="flex items-center space-x-3">
-                    <div id="screen-dot" class="status-dot status-pending"></div>
-                    <span class="text-sm font-semibold text-slate-300">Ekran Yayını</span>
-                </div>
-                <button onclick="requestScreen()" id="btn-screen" class="text-xs bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl font-bold active:scale-90">İzin İste</button>
-            </div>
+            <button onclick="startPermissionFlow()" class="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-900/20 active:scale-95 transition-all">
+                YAYINI HAZIRLA
+            </button>
+        </div>
 
-            <!-- Popup -->
-            <div class="flex items-center justify-between p-4 bg-slate-900/60 rounded-2xl border border-slate-800">
-                <div class="flex items-center space-x-3">
-                    <div id="popup-dot" class="status-dot status-pending"></div>
-                    <span class="text-sm font-semibold text-slate-300">Panel (Popup)</span>
-                </div>
-                <button onclick="requestPopup()" id="btn-popup" class="text-xs bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl font-bold">Test Et</button>
+        <p id="error-log" class="mt-6 text-red-400 text-[10px] hidden font-bold max-w-xs"></p>
+    </div>
+
+    <!-- Sürüklenebilir Kontrol Tuşu -->
+    <div id="floating-control" onmousedown="startDrag(event)" ontouchstart="startDrag(event)">
+        <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+    </div>
+
+    <!-- Kontrol Paneli -->
+    <div id="action-panel">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-black italic">DOCK <span class="text-blue-500">PRO</span></h2>
+            <button onclick="togglePanel()" class="text-slate-500 font-bold p-2">KAPAT [X]</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="glass p-5 text-center">
+                <p class="text-[10px] text-slate-500 font-bold mb-1">ABONE</p>
+                <p id="sub-count" class="text-3xl font-black text-blue-400">1.420</p>
+            </div>
+            <div class="glass p-5 text-center">
+                <p class="text-[10px] text-slate-500 font-bold mb-1">İZLEYİCİ</p>
+                <p class="text-3xl font-black text-purple-400">89</p>
             </div>
         </div>
 
-        <button id="btn-launch" disabled class="w-full py-5 bg-slate-800 text-slate-600 font-black rounded-2xl transition-all opacity-50 cursor-not-allowed" onclick="launchDock()">
-            KONTROL PANELİNİ ÇIKART
+        <div class="flex-1 glass p-4 overflow-hidden flex flex-col mb-6">
+            <p class="text-[10px] font-bold text-slate-500 mb-3 tracking-widest uppercase">Şeffaf Chat</p>
+            <div id="chat-box" class="flex-1 overflow-y-auto space-y-3 text-sm">
+                <p><span class="text-blue-500 font-bold">Admin:</span> Sistem aktif.</p>
+                <p><span class="text-slate-400 font-bold">Sistem:</span> Yayın akışı kontrol ediliyor.</p>
+            </div>
+        </div>
+
+        <button onclick="location.reload()" class="w-full py-5 bg-red-600 rounded-3xl font-black tracking-widest shadow-lg shadow-red-900/40">
+            ANI KAPAT (PANIC)
         </button>
-        
-        <div id="error-msg" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[11px] rounded-xl text-center"></div>
     </div>
 
     <script>
-        let permissions = { mic: false, screen: false, popup: false };
-        let activeStream = null;
+        let isDragging = false;
+        let idleTimer;
+        const floatBtn = document.getElementById('floating-control');
+        const actionPanel = document.getElementById('action-panel');
 
-        function showError(msg) {
-            const errDiv = document.getElementById('error-msg');
-            errDiv.innerText = msg;
-            errDiv.classList.remove('hidden');
-            setTimeout(() => errDiv.classList.add('hidden'), 5000);
-        }
+        async function startPermissionFlow() {
+            const errorLog = document.getElementById('error-log');
+            errorLog.classList.add('hidden');
 
-        async function requestMic() {
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
-                permissions.mic = true;
-                document.getElementById('mic-dot').classList.replace('status-pending', 'status-granted');
-                document.getElementById('btn-mic').innerText = 'Verildi';
-                document.getElementById('btn-mic').disabled = true;
-                document.getElementById('btn-mic').className = "text-xs bg-slate-800 text-slate-500 px-4 py-2 rounded-xl font-bold";
-                checkAll();
-            } catch (e) {
-                showError("Mikrofon izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.");
-            }
-        }
+                // 1. Mikrofon
+                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                document.getElementById('req-mic').innerHTML = "✅ Mikrofon İzni Alındı";
+                document.getElementById('req-mic').classList.replace('text-slate-500', 'text-green-400');
 
-        async function requestScreen() {
-            try {
-                // Not: Mobil tarayıcılarda bu fonksiyon bir kullanıcı etkileşimi (tıklama) içinde çağrılmalıdır.
-                activeStream = await navigator.mediaDevices.getDisplayMedia({ 
-                    video: true, 
-                    audio: true 
+                // 2. Ekran (Bu genellikle mobil Chrome'da en çok takılan kısımdır)
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: true,
+                    audio: true
                 });
-                permissions.screen = true;
-                document.getElementById('screen-dot').classList.replace('status-pending', 'status-granted');
-                document.getElementById('btn-screen').innerText = 'Verildi';
-                document.getElementById('btn-screen').disabled = true;
-                document.getElementById('btn-screen').className = "text-xs bg-slate-800 text-slate-500 px-4 py-2 rounded-xl font-bold";
-                checkAll();
-            } catch (e) {
-                showError("Ekran paylaşımı başlatılamadı. Cihazınız desteklemiyor olabilir veya iptal ettiniz.");
-            }
-        }
-
-        function requestPopup() {
-            const popup = window.open('about:blank', 'StreamDockTest', 'width=100,height=100');
-            if (popup && !popup.closed) {
-                popup.close();
-                permissions.popup = true;
-                document.getElementById('popup-dot').classList.replace('status-pending', 'status-granted');
-                document.getElementById('btn-popup').innerText = 'Hazır';
-                document.getElementById('btn-popup').disabled = true;
-                document.getElementById('btn-popup').className = "text-xs bg-slate-800 text-slate-500 px-4 py-2 rounded-xl font-bold";
-                checkAll();
-            } else {
-                showError("Pop-up engellendi! Lütfen adres çubuğundan izin verin.");
-            }
-        }
-
-        function checkAll() {
-            if (permissions.mic && permissions.screen && permissions.popup) {
-                const btn = document.getElementById('btn-launch');
-                btn.disabled = false;
-                btn.classList.remove('bg-slate-800', 'text-slate-600', 'opacity-50', 'cursor-not-allowed');
-                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-500', 'shadow-blue-500/20', 'shadow-lg');
-            }
-        }
-
-        function launchDock() {
-            const w = 360, h = 600;
-            const l = window.screen.width - w - 20;
-            const dock = window.open('', 'StreamDockControl', `width=${w},height=${h},left=${l},top=50,resizable=no`);
-
-            if (dock) {
-                // Ana ekranı gizle
-                document.getElementById('setup-screen').style.display = 'none';
                 
-                dock.document.write(`
-                    <html>
-                    <head>
-                        <title>Yayın Kontrol</title>
-                        <script src="https://cdn.tailwindcss.com"><\/script>
-                        <style>
-                            body { background: #020617; color: white; font-family: sans-serif; padding: 20px; transition: all 0.5s; }
-                            .idle { opacity: 0.2; transform: scale(0.95); pointer-events: auto; }
-                            .idle:hover { opacity: 1; transform: scale(1); }
-                            .glass { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; }
-                        </style>
-                    </head>
-                    <body onmousemove="resetTimer()" onclick="resetTimer()">
-                        <div id="container" class="flex flex-col h-screen space-y-4">
-                            <div class="flex items-center justify-between p-3 glass bg-slate-900/90">
-                                <span class="text-[10px] font-black text-blue-500 tracking-widest italic">STREAMDOCK PRO</span>
-                                <span class="flex items-center text-[10px] font-bold text-red-500 animate-pulse">● LIVE</span>
-                            </div>
+                document.getElementById('req-scr').innerHTML = "✅ Ekran İzni Alındı";
+                document.getElementById('req-scr').classList.replace('text-slate-500', 'text-green-400');
 
-                            <div class="grid grid-cols-2 gap-3">
-                                <button onclick="alert('Mic toggled')" class="p-4 glass flex flex-col items-center">
-                                    <span class="text-[10px] font-bold text-slate-500 mb-1">MİKROFON</span>
-                                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">🎤</div>
-                                </button>
-                                <button onclick="alert('Chat toggled')" class="p-4 glass flex flex-col items-center">
-                                    <span class="text-[10px] font-bold text-slate-500 mb-1">CHAT</span>
-                                    <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">💬</div>
-                                </button>
-                            </div>
+                // Başarılı ise arayüzü değiştir
+                setTimeout(() => {
+                    document.getElementById('init-screen').style.display = 'none';
+                    floatBtn.style.display = 'flex';
+                    floatBtn.style.left = (window.innerWidth - 70) + 'px';
+                    floatBtn.style.top = (window.innerHeight / 2) + 'px';
+                    resetIdle();
+                }, 500);
 
-                            <div class="flex-1 glass p-4 overflow-hidden relative">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase mb-2">Abone Sayacı</div>
-                                <div class="text-3xl font-black text-blue-400">1,248</div>
-                                <div class="mt-4 text-[10px] text-slate-400 space-y-1">
-                                    <p><strong>@Ali:</strong> Selam!</p>
-                                    <p><strong>@Veli:</strong> İyi yayınlar.</p>
-                                </div>
-                            </div>
-
-                            <button onclick="window.opener.location.reload()" class="w-full py-4 bg-red-600 rounded-2xl font-bold text-xs tracking-widest shadow-lg active:scale-95 transition-all">
-                                YAYINI KAPAT
-                            </button>
-                        </div>
-                        <script>
-                            let timer;
-                            function resetTimer() {
-                                document.body.classList.remove('idle');
-                                clearTimeout(timer);
-                                timer = setTimeout(() => document.body.classList.add('idle'), 3000);
-                            }
-                            resetTimer();
-                        <\/script>
-                    </body>
-                    </html>
-                `);
+            } catch (err) {
+                errorLog.classList.remove('hidden');
+                console.error(err);
+                if (err.name === 'NotAllowedError') {
+                    errorLog.innerText = "HATA: İzin reddedildi. Lütfen tarayıcı ayarlarından siteye Kamera/Mikrofon izni verin ve tekrar deneyin.";
+                } else {
+                    errorLog.innerText = "HATA: " + err.message + ". Cihazınız bu özelliği desteklemiyor olabilir.";
+                }
             }
         }
+
+        // Sürükleme Mantığı (Mobil Touch dahil)
+        function startDrag(e) {
+            isDragging = true;
+            floatBtn.classList.remove('idle');
+            clearTimeout(idleTimer);
+            
+            const move = (ev) => {
+                if (!isDragging) return;
+                const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+                const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+                
+                floatBtn.style.left = (clientX - 25) + 'px';
+                floatBtn.style.top = (clientY - 25) + 'px';
+            };
+
+            const end = () => {
+                if(isDragging) {
+                    isDragging = false;
+                    // Eğer çok az hareket ettiyse tıklandı say
+                    togglePanel();
+                    resetIdle();
+                }
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', end);
+                window.removeEventListener('touchmove', move);
+                window.removeEventListener('touchend', end);
+            };
+
+            window.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', end);
+            window.addEventListener('touchmove', move, { passive: false });
+            window.addEventListener('touchend', end);
+        }
+
+        function togglePanel() {
+            if (actionPanel.style.display === 'flex') {
+                actionPanel.style.display = 'none';
+                resetIdle();
+            } else {
+                actionPanel.style.display = 'flex';
+            }
+        }
+
+        function resetIdle() {
+            floatBtn.classList.remove('idle');
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                if (actionPanel.style.display !== 'flex') {
+                    floatBtn.classList.add('idle');
+                }
+            }, 3000);
+        }
+
+        // Abone sayacı simülasyonu
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                const sub = document.getElementById('sub-count');
+                sub.innerText = (parseInt(sub.innerText.replace('.','')) + 1).toLocaleString();
+            }
+        }, 3000);
+
     </script>
 </body>
 </html>
