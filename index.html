@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StreamDock V4 - Mobile Pro</title>
+    <title>StreamDock V6 - Screen Only</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
@@ -15,213 +15,234 @@
             margin: 0;
             overflow: hidden;
             height: 100vh;
-            touch-action: none; /* Kaydırmayı engelle, sadece sürüklemeye odaklan */
         }
 
-        .permission-overlay {
-            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+        .desktop-hint {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px dashed #3b82f6;
         }
 
-        #floating-control {
+        #floating-trigger {
             position: fixed;
-            width: 50px;
-            height: 50px;
-            background: #3b82f6;
+            width: 60px;
+            height: 60px;
+            background: #2563eb;
             border-radius: 50%;
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-            cursor: pointer;
-            transition: opacity 0.4s, transform 0.4s;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+            touch-action: none;
+            border: 2px solid white;
         }
 
-        .idle { opacity: 0.2; transform: scale(0.85); }
-
-        #action-panel {
+        #side-panel {
             position: fixed;
-            inset: 0;
-            background: rgba(2, 6, 23, 0.98);
+            top: 0;
+            right: -100%;
+            width: 80%;
+            max-width: 350px;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
             z-index: 2000;
-            display: none;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 1px solid rgba(255,255,255,0.1);
+            display: flex;
             flex-direction: column;
             padding: 20px;
         }
 
-        .glass { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; }
+        #side-panel.open {
+            right: 0;
+        }
+
+        .status-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Başlangıç Ekranı -->
-    <div id="init-screen" class="permission-overlay fixed inset-0 flex flex-col items-center justify-center p-6 text-center">
-        <div class="mb-8">
-            <h1 class="text-4xl font-black italic tracking-tighter mb-2">STREAM<span class="text-blue-500">DOCK</span> V4</h1>
-            <p class="text-slate-400 text-sm">Mobil Yayın Yönetim Konsolu</p>
-        </div>
-
-        <div class="w-full max-w-xs space-y-4">
-            <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5 text-left">
-                <p class="text-[11px] font-bold text-slate-500 uppercase mb-2">Gereksinimler</p>
-                <ul class="text-xs space-y-2 text-slate-300">
-                    <li class="flex items-center">✅ HTTPS Bağlantısı Aktif</li>
-                    <li class="flex items-center">✅ Chrome Tarayıcı Tespit Edildi</li>
-                    <li id="req-mic" class="flex items-center text-slate-500">⚪ Mikrofon Erişimi Bekleniyor</li>
-                    <li id="req-scr" class="flex items-center text-slate-500">⚪ Ekran Yayını Bekleniyor</li>
-                </ul>
+    <!-- Başlangıç ve Talimat Ekranı -->
+    <div id="init-screen" class="fixed inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-950 z-50">
+        <h1 class="text-4xl font-black italic mb-6">STREAM<span class="text-blue-500">DOCK</span></h1>
+        
+        <div id="error-container" class="hidden w-full max-w-sm mb-6">
+            <div class="desktop-hint p-6 rounded-3xl text-left border-amber-500/50">
+                <p class="text-amber-400 font-bold text-sm mb-3 underline">ÖNEMLİ: EKRAN İZNİ GEREKLİ</p>
+                <p class="text-slate-300 text-xs leading-relaxed mb-4">
+                    Mobil Chrome ekran yakalamayı gizler. Yayını başlatabilmek için:
+                </p>
+                <ol class="text-[11px] text-slate-400 space-y-2 list-decimal ml-4">
+                    <li>Sağ üstteki <b>üç noktaya (⋮)</b> basın.</li>
+                    <li><b>"Masaüstü Sitesi"</b> kutucuğunu işaretleyin.</li>
+                    <li>Sayfa yenilendiğinde tekrar gelin.</li>
+                </ol>
             </div>
-
-            <button onclick="startPermissionFlow()" class="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-900/20 active:scale-95 transition-all">
-                YAYINI HAZIRLA
-            </button>
         </div>
 
-        <p id="error-log" class="mt-6 text-red-400 text-[10px] hidden font-bold max-w-xs"></p>
+        <button id="start-btn" onclick="requestScreenOnly()" class="w-full max-w-sm py-5 bg-blue-600 rounded-3xl font-black text-lg shadow-xl active:scale-95 transition-all">
+            EKRAN YAYININI BAŞLAT
+        </button>
+        
+        <p class="mt-6 text-[10px] text-slate-500">Sadece ekran videosu yakalanacaktır. Kamera açılmaz.</p>
     </div>
 
-    <!-- Sürüklenebilir Kontrol Tuşu -->
-    <div id="floating-control" onmousedown="startDrag(event)" ontouchstart="startDrag(event)">
-        <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+    <!-- Yüzen Tetikleyici (Masaüstü/iOS Benzeri) -->
+    <div id="floating-trigger">
+        <div class="w-4 h-4 bg-white rounded-sm rotate-45"></div>
     </div>
 
-    <!-- Kontrol Paneli -->
-    <div id="action-panel">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-black italic">DOCK <span class="text-blue-500">PRO</span></h2>
-            <button onclick="togglePanel()" class="text-slate-500 font-bold p-2">KAPAT [X]</button>
+    <!-- Sağ Kontrol Paneli -->
+    <div id="side-panel">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-xl font-black italic">STREAMDOCK</h2>
+                <span class="status-badge">CANLI YAYIN AKTİF</span>
+            </div>
+            <button onclick="togglePanel()" class="text-slate-400 p-2 text-xl font-bold">×</button>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 mb-6">
-            <div class="glass p-5 text-center">
-                <p class="text-[10px] text-slate-500 font-bold mb-1">ABONE</p>
-                <p id="sub-count" class="text-3xl font-black text-blue-400">1.420</p>
+        <div class="space-y-4 mb-8">
+            <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
+                <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Anlık İzleyici</p>
+                <p class="text-2xl font-black">152</p>
             </div>
-            <div class="glass p-5 text-center">
-                <p class="text-[10px] text-slate-500 font-bold mb-1">İZLEYİCİ</p>
-                <p class="text-3xl font-black text-purple-400">89</p>
-            </div>
-        </div>
-
-        <div class="flex-1 glass p-4 overflow-hidden flex flex-col mb-6">
-            <p class="text-[10px] font-bold text-slate-500 mb-3 tracking-widest uppercase">Şeffaf Chat</p>
-            <div id="chat-box" class="flex-1 overflow-y-auto space-y-3 text-sm">
-                <p><span class="text-blue-500 font-bold">Admin:</span> Sistem aktif.</p>
-                <p><span class="text-slate-400 font-bold">Sistem:</span> Yayın akışı kontrol ediliyor.</p>
+            <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
+                <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Yayın Süresi</p>
+                <p id="timer" class="text-2xl font-black text-blue-500">00:00:00</p>
             </div>
         </div>
 
-        <button onclick="location.reload()" class="w-full py-5 bg-red-600 rounded-3xl font-black tracking-widest shadow-lg shadow-red-900/40">
-            ANI KAPAT (PANIC)
+        <div class="flex-1 bg-black/20 rounded-2xl p-4 overflow-hidden flex flex-col">
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-3">Sohbet Akışı</p>
+            <div id="chat" class="flex-1 overflow-y-auto space-y-3 text-xs scrollbar-hide">
+                <p><b class="text-blue-400">User1:</b> Ekran yayını efsane!</p>
+                <p><b class="text-slate-400">Sistem:</b> Kayıt devam ediyor.</p>
+            </div>
+        </div>
+
+        <button onclick="location.reload()" class="mt-6 w-full py-4 bg-red-600 text-white rounded-2xl font-bold text-sm">
+            YAYINI DURDUR
         </button>
     </div>
 
     <script>
-        let isDragging = false;
-        let idleTimer;
-        const floatBtn = document.getElementById('floating-control');
-        const actionPanel = document.getElementById('action-panel');
+        let isPanelOpen = false;
 
-        async function startPermissionFlow() {
-            const errorLog = document.getElementById('error-log');
-            errorLog.classList.add('hidden');
+        async function requestScreenOnly() {
+            const btn = document.getElementById('start-btn');
+            const errBox = document.getElementById('error-container');
+
+            // Kontrol: Fonksiyon var mı?
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                errBox.classList.remove('hidden');
+                btn.innerText = "Yeniden Dene";
+                return;
+            }
 
             try {
-                // 1. Mikrofon
-                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                document.getElementById('req-mic').innerHTML = "✅ Mikrofon İzni Alındı";
-                document.getElementById('req-mic').classList.replace('text-slate-500', 'text-green-400');
-
-                // 2. Ekran (Bu genellikle mobil Chrome'da en çok takılan kısımdır)
-                const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                // Sadece ekran videosu yakala
+                const stream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
-                    audio: true
+                    audio: true // İstersen sistem sesini de alır
                 });
-                
-                document.getElementById('req-scr').innerHTML = "✅ Ekran İzni Alındı";
-                document.getElementById('req-scr').classList.replace('text-slate-500', 'text-green-400');
 
-                // Başarılı ise arayüzü değiştir
-                setTimeout(() => {
-                    document.getElementById('init-screen').style.display = 'none';
-                    floatBtn.style.display = 'flex';
-                    floatBtn.style.left = (window.innerWidth - 70) + 'px';
-                    floatBtn.style.top = (window.innerHeight / 2) + 'px';
-                    resetIdle();
-                }, 500);
+                // Başarılı olursa kurulumu kapat
+                document.getElementById('init-screen').classList.add('hidden');
+                
+                // Yüzen butonu göster
+                const trigger = document.getElementById('floating-trigger');
+                trigger.style.display = 'flex';
+                trigger.style.right = '20px';
+                trigger.style.top = '50%';
+
+                // Sürükleme ve Tıklama Yönetimi
+                setupFloatingButton(trigger);
+                startTimer();
 
             } catch (err) {
-                errorLog.classList.remove('hidden');
-                console.error(err);
-                if (err.name === 'NotAllowedError') {
-                    errorLog.innerText = "HATA: İzin reddedildi. Lütfen tarayıcı ayarlarından siteye Kamera/Mikrofon izni verin ve tekrar deneyin.";
+                console.error("Hata:", err);
+                if(err.name === "NotAllowedError") {
+                    alert("Yayın izni verilmedi.");
                 } else {
-                    errorLog.innerText = "HATA: " + err.message + ". Cihazınız bu özelliği desteklemiyor olabilir.";
+                    alert("Hata: " + err.message);
                 }
             }
         }
 
-        // Sürükleme Mantığı (Mobil Touch dahil)
-        function startDrag(e) {
-            isDragging = true;
-            floatBtn.classList.remove('idle');
-            clearTimeout(idleTimer);
-            
-            const move = (ev) => {
-                if (!isDragging) return;
-                const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-                const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        function setupFloatingButton(el) {
+            let active = false;
+            let currentX;
+            let currentY;
+            let initialX;
+            let initialY;
+            let xOffset = 0;
+            let yOffset = 0;
+
+            el.addEventListener("touchstart", dragStart, false);
+            el.addEventListener("touchend", dragEnd, false);
+            el.addEventListener("touchmove", drag, false);
+
+            function dragStart(e) {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+                active = true;
+                el.style.opacity = "1";
+            }
+
+            function dragEnd(e) {
+                initialX = currentX;
+                initialY = currentY;
+                active = false;
                 
-                floatBtn.style.left = (clientX - 25) + 'px';
-                floatBtn.style.top = (clientY - 25) + 'px';
-            };
+                // Eğer çok hareket etmediyse panel aç/kapat
+                const movement = Math.abs(xOffset) + Math.abs(yOffset);
+                if (movement < 10) togglePanel();
+                
+                setTimeout(() => el.style.opacity = "0.4", 2000);
+            }
 
-            const end = () => {
-                if(isDragging) {
-                    isDragging = false;
-                    // Eğer çok az hareket ettiyse tıklandı say
-                    togglePanel();
-                    resetIdle();
+            function drag(e) {
+                if (active) {
+                    e.preventDefault();
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                    xOffset = currentX;
+                    yOffset = currentY;
+                    setTranslate(currentX, currentY, el);
                 }
-                window.removeEventListener('mousemove', move);
-                window.removeEventListener('mouseup', end);
-                window.removeEventListener('touchmove', move);
-                window.removeEventListener('touchend', end);
-            };
+            }
 
-            window.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', end);
-            window.addEventListener('touchmove', move, { passive: false });
-            window.addEventListener('touchend', end);
+            function setTranslate(xPos, yPos, el) {
+                el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+            }
         }
 
         function togglePanel() {
-            if (actionPanel.style.display === 'flex') {
-                actionPanel.style.display = 'none';
-                resetIdle();
-            } else {
-                actionPanel.style.display = 'flex';
-            }
+            const panel = document.getElementById('side-panel');
+            isPanelOpen = !isPanelOpen;
+            if(isPanelOpen) panel.classList.add('open');
+            else panel.classList.remove('open');
         }
 
-        function resetIdle() {
-            floatBtn.classList.remove('idle');
-            clearTimeout(idleTimer);
-            idleTimer = setTimeout(() => {
-                if (actionPanel.style.display !== 'flex') {
-                    floatBtn.classList.add('idle');
-                }
-            }, 3000);
+        function startTimer() {
+            let sec = 0;
+            const timerEl = document.getElementById('timer');
+            setInterval(() => {
+                sec++;
+                let h = Math.floor(sec / 3600);
+                let m = Math.floor((sec % 3600) / 60);
+                let s = sec % 60;
+                timerEl.innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            }, 1000);
         }
-
-        // Abone sayacı simülasyonu
-        setInterval(() => {
-            if (Math.random() > 0.7) {
-                const sub = document.getElementById('sub-count');
-                sub.innerText = (parseInt(sub.innerText.replace('.','')) + 1).toLocaleString();
-            }
-        }, 3000);
-
     </script>
 </body>
 </html>
